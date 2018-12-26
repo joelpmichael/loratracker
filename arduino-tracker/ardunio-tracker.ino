@@ -182,53 +182,44 @@ void do_send(osjob_t* j){
         Serial.print("Latitude: ");
         Serial.println(i_lat);
 
-        // arduino stores a long as 2 x 16bit LSB ints
-        // LoRaWAN transmits MSB, so swap every 2 bytes
-        xmit[1] = (i_lat & 0xFF000000) >> 24;
-        xmit[0] = (i_lat & 0x00FF0000) >> 16;
-        xmit[3] = (i_lat & 0x0000FF00) >>  8;
-        xmit[2] = (i_lat & 0x000000FF);
+
+        xmit[0] = (i_lat & 0xFF000000) >> 24;
+        xmit[1] = (i_lat & 0x00FF0000) >> 16;
+        xmit[2] = (i_lat & 0x0000FF00) >>  8;
+        xmit[3] = (i_lat & 0x000000FF);
 
         Serial.print("Longitude: ");
         Serial.println(i_lon);
-        xmit[5] = (i_lon & 0xFF000000) >> 24;
-        xmit[4] = (i_lon & 0x00FF0000) >> 16;
-        xmit[7] = (i_lon & 0x0000FF00) >>  8;
-        xmit[6] = (i_lon & 0x000000FF);
+        xmit[4] = (i_lon & 0xFF000000) >> 24;
+        xmit[5] = (i_lon & 0x00FF0000) >> 16;
+        xmit[6] = (i_lon & 0x0000FF00) >>  8;
+        xmit[7] = (i_lon & 0x000000FF);
         
         Serial.print("Altitude: ");
         Serial.println(i_alt);
-        xmit[9]  = (i_alt & 0xFF000000) >> 24;
-        xmit[8]  = (i_alt & 0x00FF0000) >> 16;
-        xmit[11] = (i_alt & 0x0000FF00) >>  8;
-        xmit[10] = (i_alt & 0x000000FF);
+        xmit[8]  = (i_alt & 0xFF000000) >> 24;
+        xmit[9]  = (i_alt & 0x00FF0000) >> 16;
+        xmit[10] = (i_alt & 0x0000FF00) >>  8;
+        xmit[11] = (i_alt & 0x000000FF);
         
         Serial.print("Date: ");
         Serial.println(gps_date);
-        xmit[13] = (gps_date & 0xFF000000) >> 24;
-        xmit[12] = (gps_date & 0x00FF0000) >> 16;
-        xmit[15] = (gps_date & 0x0000FF00) >>  8;
-        xmit[14] = (gps_date & 0x000000FF);
+        xmit[12] = (gps_date & 0xFF000000) >> 24;
+        xmit[13] = (gps_date & 0x00FF0000) >> 16;
+        xmit[14] = (gps_date & 0x0000FF00) >>  8;
+        xmit[15] = (gps_date & 0x000000FF);
         
         Serial.print("Time: ");
         Serial.println(gps_time);
-        xmit[17] = (gps_time & 0xFF000000) >> 24;
-        xmit[16] = (gps_time & 0x00FF0000) >> 16;
-        xmit[19] = (gps_time & 0x0000FF00) >>  8;
-        xmit[18] = (gps_time & 0x000000FF);
+        xmit[16] = (gps_time & 0xFF000000) >> 24;
+        xmit[17] = (gps_time & 0x00FF0000) >> 16;
+        xmit[18] = (gps_time & 0x0000FF00) >>  8;
+        xmit[19] = (gps_time & 0x000000FF);
         
         Serial.print("Timestamp Age: ");
         Serial.println(p_age);
         Serial.println();
 
-        int i = 0;
-        for(i=0;i<20;i++) {
-          Serial.print("Byte ");
-          Serial.print(i);
-          Serial.print(": ");
-          Serial.println(xmit[i]);
-        }
-        
         // Prepare upstream data transmission at the next possible time.
         LMIC_setTxData2(1, xmit, sizeof(xmit)-1, 0);
         Serial.println(F("Packet queued"));
