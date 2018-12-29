@@ -29,18 +29,6 @@ import datetime
 import base64
 import http.server
 
-# 32 bit signed int function, from http://www.neotitans.com/resources/python/python-unsigned-32bit-value.html
-def int32(x):
-  if x>0xFFFFFFFF:
-    raise OverflowError
-  if x>0x7FFFFFFF:
-    x=int(0x100000000-x)
-    if x<2147483648:
-      return -x
-    else:
-      return -2147483648
-  return x
-
 class CustomHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
     # only accept POST requests of JSON smaller than 4096 bytes
     def do_POST(self):
@@ -59,19 +47,19 @@ class CustomHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(415)
             return
         body = self.rfile.read(content_length)
+        payload = json.loads(body.decode())
         if(self.path == '/uplink'):
             # handle uplink data
-            uplink = json.loads(body.decode())
-            app_id = uplink['applicationID']
-            dev_eui = uplink['devEUI']
-            gateway_id = uplink['rxInfo'][0]['gatewayID']
-            gw_rx_time = uplink['rxInfo'][0]['time']
-            gw_rssi = uplink['rxInfo'][0]['rssi']
-            gw_snr = uplink['rxInfo'][0]['loRaSNR']
-            gw_lat = uplink['rxInfo'][0]['location']['latitude']
-            gw_lon = uplink['rxInfo'][0]['location']['longitude']
-            gw_alt = uplink['rxInfo'][0]['location']['altitude']
-            uplink_data = base64.decodebytes(uplink['data'].encode())
+            app_id = payload['applicationID']
+            dev_eui = payload['devEUI']
+            gateway_id = payload['rxInfo'][0]['gatewayID']
+            gw_rx_time = payload['rxInfo'][0]['time']
+            gw_rssi = payload['rxInfo'][0]['rssi']
+            gw_snr = payload['rxInfo'][0]['loRaSNR']
+            gw_lat = payload['rxInfo'][0]['location']['latitude']
+            gw_lon = payload['rxInfo'][0]['location']['longitude']
+            gw_alt = payload['rxInfo'][0]['location']['altitude']
+            uplink_data = base64.decodebytes(payload['data'].encode())
 
             # uplink_data is the byte stream coming out of the tracker
             # output is 20 bytes of packed data (5 x 32bit words):
@@ -81,9 +69,9 @@ class CustomHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             # u_long gps_date: date stamp of GPS in DDMMYY
             # u_long gps_time: time stamp of GPS in HHMMSSff - divide by 100 for decimal S
             
-            i_lat = int.from_bytes(uplink_data[0:4], byteorder='big', signed=True) / 1000000
-            i_lon = int.from_bytes(uplink_data[4:8], byteorder='big', signed=True) / 1000000
-            i_alt = int.from_bytes(uplink_data[8:12], byteorder='big', signed=True) / 100
+            f_lat = int.from_bytes(uplink_data[0:4], byteorder='big', signed=True) / 1000000
+            f_lon = int.from_bytes(uplink_data[4:8], byteorder='big', signed=True) / 1000000
+            f_alt = int.from_bytes(uplink_data[8:12], byteorder='big', signed=True) / 100
             gps_date = int.from_bytes(uplink_data[12:16], byteorder='big', signed=False)
             gps_time = int.from_bytes(uplink_data[16:20], byteorder='big', signed=False)
 
@@ -92,10 +80,12 @@ class CustomHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
             print(gw_rx_timestamp.isoformat())
             print(gps_timestamp.isoformat())
-            
+
             self.send_response(204)
             self.end_headers()
         else:
+            print(self.path)
+            print(payload)
             self.send_error(404)
     def _Err405(self):
         self.send_response(405)
