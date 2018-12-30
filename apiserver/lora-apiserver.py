@@ -135,7 +135,7 @@ class CustomHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
             # insert into the db
             cur.execute("""INSERT INTO tracker_data (gw_id, gw_location, app_id, dev_eui, gw_rx_timestamp, gw_rx_rssi, gw_rx_snr, gps_timestamp, gps_location) 
-                VALUES (%s, ST_SetSRID(st_makepoint(%s,%s,%s),4326), %s, %s, %s, %s, %s, %s, ST_SetSRID(st_makepoint(%s,%s,%s),4326);""", 
+                VALUES (%s, ST_SetSRID(st_makepoint(%s,%s,%s),4326), %s, %s, %s, %s, %s, %s, ST_SetSRID(st_makepoint(%s,%s,%s),4326));""", 
                 (gw_id, gw_lat, gw_lon, gw_alt, app_id, dev_eui, gw_rx_timestamp, gw_rx_rssi, gw_rx_snr, gps_timestamp, f_lat, f_lon, f_alt)
             )
             self.send_response(204)
