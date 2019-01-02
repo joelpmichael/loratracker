@@ -405,3 +405,6 @@ ASALocalRun/
 .localhistory/
 
 # End of https://www.gitignore.io/api/vim,xcode,visualstudio,visualstudiocode
+
+# ignore flask-apiserver/local_config.json
+flask-apiserver/local_config.json

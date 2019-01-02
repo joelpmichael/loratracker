@@ -1,0 +1,9 @@
+{
+    "DEBUG": false,
+    "TESTING": false,
+    "DBNAME": "loratracker",
+    "DBUSER": "loratracker",
+    "DBPASS": null,
+    "DBHOST": null,
+    "DBPORT": 5432
+}
