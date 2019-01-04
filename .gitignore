@@ -408,3 +408,6 @@ ASALocalRun/
 
 # ignore flask-apiserver/local_config.json
 flask-apiserver/local_config.json
+
+# download OpenLayers v5.3.0-dist.zip from https://openlayers.org/download/
+flask-apiserver/public/v5.3.0-dist/
