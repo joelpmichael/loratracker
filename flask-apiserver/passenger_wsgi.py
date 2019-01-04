@@ -1,1 +1,1 @@
-from apiserver import ApiServer as application
+from apiserver import app as application
