@@ -39,6 +39,8 @@ def limit_content_type(allowed_type):
 import datetime # for datetime.strptime()
 import base64 # for base64.decode()
 import psycopg2 # for database
+import string # for string.hexdigits()
+import json # for json.dumps() and json.loads()
 
 @app.route('/uplink', methods = ['POST'])
 @limit_content_length(4096)
@@ -90,6 +92,12 @@ def uplink():
 
     return ('', 204) # 204 = HTTP no content
 
+# return location of a requested gateway
+# gateway ID must be one of:
+# - 16 hex digits
+# - "self" (return gateway ID defined in config, or "mid" if not defined)
+# - "mid" (return middle of all gateway locations)
+# - "all" (return all gateway locations)
 @app.route('/gwlocation/<gateway>', methods = ['GET'])
 #@limit_content_type('application/json')
 def gwlocation(gateway):
@@ -105,27 +113,45 @@ def gwlocation(gateway):
         else:
             gateway = app.config['GATEWAYID']
     if gateway == 'mid':
-        # return the geometric middle of all gateway last known locations
-        pass
+        # return the middle of all gateway last known locations
+        cur.execute("""SELECT 'ffffffffffffffff'::char(16), ST_AsGeoJSON(ST_Centroid(ST_Collect(gw.gw_location)))
+            FROM (
+	            SELECT DISTINCT ON (gw_id) gw_id, gw_location::geometry
+	            FROM tracker_data
+	            ORDER BY gw_id, gw_rx_timestamp DESC
+            ) AS gw;""")
     elif gateway == 'all':
-        # return the last known location of all gateways
-        cur.execute("""SELECT DISTINCT ON (gw_id) gw_id, ST_AsText(gw_location)
+        # return the location of all gateway last known locations
+        cur.execute("""SELECT DISTINCT ON (gw_id) gw_id, ST_AsGeoJSON(gw_location)
             FROM tracker_data
-            ORDER BY gw_id, gw_rx_timestamp DESC;""")
-        
-        pass
+            ORDER BY gw_id, gw_rx_timestamp DESC;""",
+        )
     else:
+        if len(gateway) != 16: # gateway ID is 16 hex characters, make sure it is
+            abort(404)
+        if not all(c in string.hexdigits for c in gateway):
+            abort(404)
         # return the last known location of the requested gateway
-        cur.execute("""SELECT DISTINCT ON (gw_id) gw_id, ST_AsText(gw_location)
+        cur.execute("""SELECT DISTINCT ON (gw_id) gw_id, ST_AsGeoJSON(gw_location)
             FROM tracker_data
             WHERE gw_id = %s
             ORDER BY gw_id, gw_rx_timestamp DESC;""",
             (gateway,)
         )
-        pass
+
+    if cur.rowcount == 0:
+        # gateway not found
+        abort(404)
+        
+    gateways = {}
+    for record in cur:
+        geojson = json.loads(record[1])
+        gateways[record[0]] = geojson
+    
+    return jsonify(gateways)
 
 @app.route('/gwarea/<gateway>', methods = ['GET'])
-@limit_content_type('application/json')
+#@limit_content_type('application/json')
 def gwarea(gateway):
     # set up DB connection
     dbconn = psycopg2.connect(dbname=app.config['DBNAME'], user=app.config['DBUSER'], password=app.config['DBPASS'], host=app.config['DBHOST'], port=app.config['DBPORT'])
@@ -140,9 +166,6 @@ def gwarea(gateway):
             gateway = app.config['GATEWAYID']
     if gateway == 'mid':
         # return the geometric middle of all gateway last known locations
-        pass
-    elif gateway == 'all':
-        # return the last known location of all gateways
         pass
     else:
         # return the last known location of the requested gateway
