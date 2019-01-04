@@ -158,6 +158,10 @@ def gwarea(gateway):
     dbconn.autocommit = True
     cur = dbconn.cursor()
 
+    if app.config['GATEWAYRADIUS'] == 0:
+        # you definitely need to configure this...
+        print("Configure GATEWAYRADIUS to non-zero in M from gateway")
+        abort(500)
     if gateway == 'self':
         # we are trying to find ourself
         if app.config['GATEWAYID'] == None:
@@ -165,11 +169,41 @@ def gwarea(gateway):
         else:
             gateway = app.config['GATEWAYID']
     if gateway == 'mid':
-        # return the geometric middle of all gateway last known locations
-        pass
+        # return the middle of all gateway last known locations
+        cur.execute("""SELECT 'ffffffffffffffff'::char(16), ST_AsGeoJSON(Box2D(ST_Buffer(ST_SetSRID(ST_Centroid(ST_Collect(gw.gw_location)),4326)::geography,%s,'quad_segs=1')::geometry))
+            FROM (
+                SELECT DISTINCT ON (gw_id) gw_id, gw_location::geometry
+                FROM tracker_data
+                ORDER BY gw_id, gw_rx_timestamp DESC
+            ) AS gw;""",
+            (app.config['GATEWAYRADIUS'],)
+        )
     else:
         # return the last known location of the requested gateway
-        pass
+        if len(gateway) != 16: # gateway ID is 16 hex characters, make sure it is
+            abort(404)
+        if not all(c in string.hexdigits for c in gateway):
+            abort(404)
+        cur.execute("""SELECT gw.gw_id, ST_AsGeoJSON(Box2D(ST_Buffer(ST_SetSRID(ST_Centroid(ST_Collect(gw.gw_location)),4326)::geography,%s,'quad_segs=1')::geometry))
+            FROM (
+                SELECT DISTINCT ON (gw_id) gw_id, gw_location::geometry
+                FROM tracker_data
+                WHERE gw_id = %s
+                ORDER BY gw_id, gw_rx_timestamp DESC
+            ) AS gw
+            GROUP BY 1;""",
+            (app.config['GATEWAYRADIUS'],gateway)
+        )
+    if cur.rowcount == 0:
+        # gateway not found
+        abort(404)
+        
+    gateways = {}
+    for record in cur:
+        geojson = json.loads(record[1])
+        gateways[record[0]] = geojson
+    
+    return jsonify(gateways)
 
 if __name__ == '__main__':
     app.run()

@@ -2,7 +2,7 @@
     "DEBUG": false,
     "TESTING": false,
     "GATEWAYID": null,
-    "GATEWAYAREA": 0,
+    "GATEWAYRADIUS": 0,
     "DBNAME": "loratracker",
     "DBUSER": "loratracker",
     "DBPASS": null,
