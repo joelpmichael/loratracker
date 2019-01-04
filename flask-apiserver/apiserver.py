@@ -85,10 +85,68 @@ def uplink():
     cur = dbconn.cursor()
     cur.execute("""INSERT INTO tracker_data (gw_id, gw_location, app_id, dev_eui, gw_rx_timestamp, gw_rx_rssi, gw_rx_snr, gps_timestamp, gps_location) 
         VALUES (%s, ST_SetSRID(st_makepoint(%s,%s,%s),4326), %s, %s, %s, %s, %s, %s, ST_SetSRID(st_makepoint(%s,%s,%s),4326));""", 
-        (gw_id, gw_lat, gw_lon, gw_alt, app_id, dev_eui, gw_rx_timestamp, gw_rx_rssi, gw_rx_snr, gps_timestamp, f_lat, f_lon, f_alt)
+        (gw_id, gw_lon, gw_lat, gw_alt, app_id, dev_eui, gw_rx_timestamp, gw_rx_rssi, gw_rx_snr, gps_timestamp, f_lon, f_lat, f_alt)
     )
 
-    return ('', 204)
+    return ('', 204) # 204 = HTTP no content
+
+@app.route('/gwlocation/<gateway>', methods = ['GET'])
+#@limit_content_type('application/json')
+def gwlocation(gateway):
+    # set up DB connection
+    dbconn = psycopg2.connect(dbname=app.config['DBNAME'], user=app.config['DBUSER'], password=app.config['DBPASS'], host=app.config['DBHOST'], port=app.config['DBPORT'])
+    dbconn.autocommit = True
+    cur = dbconn.cursor()
+
+    if gateway == 'self':
+        # we are trying to find ourself
+        if app.config['GATEWAYID'] == None:
+            gateway = 'mid'
+        else:
+            gateway = app.config['GATEWAYID']
+    if gateway == 'mid':
+        # return the geometric middle of all gateway last known locations
+        pass
+    elif gateway == 'all':
+        # return the last known location of all gateways
+        cur.execute("""SELECT DISTINCT ON (gw_id) gw_id, ST_AsText(gw_location)
+            FROM tracker_data
+            ORDER BY gw_id, gw_rx_timestamp DESC;""")
+        
+        pass
+    else:
+        # return the last known location of the requested gateway
+        cur.execute("""SELECT DISTINCT ON (gw_id) gw_id, ST_AsText(gw_location)
+            FROM tracker_data
+            WHERE gw_id = %s
+            ORDER BY gw_id, gw_rx_timestamp DESC;""",
+            (gateway,)
+        )
+        pass
+
+@app.route('/gwarea/<gateway>', methods = ['GET'])
+@limit_content_type('application/json')
+def gwarea(gateway):
+    # set up DB connection
+    dbconn = psycopg2.connect(dbname=app.config['DBNAME'], user=app.config['DBUSER'], password=app.config['DBPASS'], host=app.config['DBHOST'], port=app.config['DBPORT'])
+    dbconn.autocommit = True
+    cur = dbconn.cursor()
+
+    if gateway == 'self':
+        # we are trying to find ourself
+        if app.config['GATEWAYID'] == None:
+            gateway = 'mid'
+        else:
+            gateway = app.config['GATEWAYID']
+    if gateway == 'mid':
+        # return the geometric middle of all gateway last known locations
+        pass
+    elif gateway == 'all':
+        # return the last known location of all gateways
+        pass
+    else:
+        # return the last known location of the requested gateway
+        pass
 
 if __name__ == '__main__':
     app.run()
