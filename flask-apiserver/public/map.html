@@ -15,22 +15,48 @@
         <h2>My Map</h2>
         <div id="map" class="map"></div>
         <script type="text/javascript">
-            // create initial map without a view
-            // view will be updated later during XHR async callback
-            var map = new ol.Map({
-                target: 'map',
-                maxTilesLoading: 4,
-                layers: [
-                    new ol.layer.Tile({
-                        source: new ol.source.OSM({'url': '/osm/{z}/{x}/{y}.png'})
-                    })
-                ],
-            });
-            var view = new ol.View({
+
+var reloadTime = 120000; // milliseconds
+var defaultZoom = 10; // OpenLayers zoom level
+
+// create initial map without a view
+// view will be updated later during XHR async callback
+var map = new ol.Map({
+    target: 'map',
+    maxTilesLoading: 4,
+    layers: [
+        new ol.layer.Tile({
+            source: new ol.source.OSM({'url': '/osm/{z}/{x}/{y}.png'})
+        })
+    ]
+});
+
+function ReloadView() {
+    console.log("call ReloadView");
+    var xhrGwLocSelf = new XMLHttpRequest();
+    xhrGwLocSelf.open("GET", "/gwlocation/self");
+    xhrGwLocSelf.setRequestHeader("Content-Type", "application/json");
+    xhrGwLocSelf.setRequestHeader("Accept", "application/json");
+    xhrGwLocSelf.onreadystatechange = function () {
+        // async XHR callback
+        console.log("call UpdateViewGwLocSelf with readyState: " + this.readyState + " and status: " + this.status);
+        if (this.readyState == 4 && this.status == 200) {
+            var curView = map.getView();
+            var newView = new ol.View({
                 center: ol.proj.fromLonLat([144.57612, -37.71034]),
-                zoom: 8
+                zoom: defaultZoom
             });
-            map.setView(view) 
+            map.setView(newView);
+        }
+    };
+    xhrGwLocSelf.responseType = 'json';
+    xhrGwLocSelf.timeout = 2000;
+    xhrGwLocSelf.send();
+}
+
+ReloadView();
+setInterval(ReloadView, reloadTime);
+
         </script>
   </body>
 </html>
