@@ -19,8 +19,35 @@
 var reloadTime = 120000; // milliseconds
 var defaultZoom = 10; // OpenLayers zoom level
 
+var styles = {
+    'selfGW': new Style({
+        image: new CircleStyle({
+            radius: 7,
+            fill: new Fill({color: 'red'})
+        })
+    }),
+    'otherGW': new Style({
+        image: new CircleStyle({
+            radius: 7,
+            fill: new Fill({color: 'green'})
+        })
+    }),
+    'selfTracker': new Style({
+        image: new CircleStyle({
+            radius: 7,
+            fill: new Fill({color: 'black'})
+        })
+    }),
+    'otherTracker': new Style({
+        image: new CircleStyle({
+            radius: 7,
+            fill: new Fill({color: 'blue'})
+        })
+    })
+};
+
 // create initial map without a view
-// view will be updated later during XHR async callback
+// view will be added later during XHR async callback
 var map = new ol.Map({
     target: 'map',
     maxTilesLoading: 4,
@@ -33,6 +60,10 @@ var map = new ol.Map({
 
 function ReloadView() {
     console.log("call ReloadView");
+
+    // set location of self gateway location
+    // this will be either set from the gateway ID in the apiserver local_config.json
+    // or the mid point of all gateways
     var xhrGwLocSelf = new XMLHttpRequest();
     xhrGwLocSelf.open("GET", "/gwlocation/self");
     xhrGwLocSelf.setRequestHeader("Content-Type", "application/json");
@@ -41,12 +72,74 @@ function ReloadView() {
         // async XHR callback
         console.log("call UpdateViewGwLocSelf with readyState: " + this.readyState + " and status: " + this.status);
         if (this.readyState == 4 && this.status == 200) {
+            var response = this.response;
+            console.log("success response: " + response)
+
             var curView = map.getView();
+            var curLayers = map.getLayers();
+            var curCenter = curView.getCenter();
+            var curZoom = curView.getZoom();
+            var curExtent = curView.get(extent);
+
+            var gwId;
+            var newCenter;
+            for (gwId in response) {
+                if (!response.hasOwnProperty(key)) continue; // skip loop if the property is from prototype - from https://stackoverflow.com/questions/921789/how-to-loop-through-a-plain-javascript-object-with-the-objects-as-members
+                newCenter = (new ol.format.GeoJSON({dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'})).readFeature(response[gwId]);
+            }
+            var newZoom = defaultZoom;
+
+            if (typeof curCenter !== 'undefined') {
+                newCenter = curCenter;
+            }
+            if (typeof curZoom !== 'undefined') {
+                newZoom = curZoom;
+            }
+
             var newView = new ol.View({
-                center: ol.proj.fromLonLat([144.57612, -37.71034]),
-                zoom: defaultZoom
+                enableRotation: false,
+                extent: curExtent,
+                center: newCenter,
+                zoom: newZoom
             });
             map.setView(newView);
+
+            // update point of this gateway
+            if(gwId !== 'ffffffffffffffff') {
+                // gwId === ffffffffffffffff means the centre of all gateways, so don't render that point
+                var mapPoints;
+                if (curLayers.getLength() == 1) {
+                    // only the OSM layer exists, create a new vector layer for our points
+                    mapPoints = new ol.layer.VectorLayer({
+                        style: function(feature) {
+                            return styles[feature.get('type')];
+                        }
+                    });
+                }
+                else {
+                    mapPoints = curLayers.pop();
+                }
+
+                vectorPoints = mapPoints.getSource();
+                if (typeof vectorPoints === 'undefined') {
+                    vectorPoints = new ol.source.VectorSource({
+                        useSpatialIndex: false
+                    });
+                }
+                else {
+                    vectorPoints.removeFeature(vectorPoints.getFeatureById(gwId));
+                }
+
+                var gwPoint = new ol.Feature({
+                    type: 'selfGW',
+                    geometry: newCenter
+                });
+                gwPoint.setId(gwId);
+                vectorPoints.addFeature(gwPoint);
+
+                mapPoints.setSource(vectorPoints);
+                curLayers.push(mapPoints);
+            }
         }
     };
     xhrGwLocSelf.responseType = 'json';
