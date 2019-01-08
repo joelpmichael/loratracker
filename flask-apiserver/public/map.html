@@ -21,28 +21,28 @@ var reloadTime = 120000; // milliseconds
 var defaultZoom = 10; // OpenLayers zoom level
 
 var styles = {
-    'selfGW': new Style({
-        image: new CircleStyle({
+    'selfGW': new ol.Style({
+        image: new ol.style.CircleStyle({
             radius: 7,
-            fill: new Fill({color: 'red'})
+            fill: new ol.style.Fill({color: 'red'})
         })
     }),
-    'otherGW': new Style({
-        image: new CircleStyle({
+    'otherGW': new ol.Style({
+        image: new ol.style.CircleStyle({
             radius: 7,
-            fill: new Fill({color: 'green'})
+            fill: new ol.style.Fill({color: 'green'})
         })
     }),
-    'selfTracker': new Style({
-        image: new CircleStyle({
+    'selfTracker': new ol.Style({
+        image: new ol.style.CircleStyle({
             radius: 7,
-            fill: new Fill({color: 'black'})
+            fill: new ol.style.Fill({color: 'black'})
         })
     }),
-    'otherTracker': new Style({
-        image: new CircleStyle({
+    'otherTracker': new ol.Style({
+        image: new ol.style.CircleStyle({
             radius: 7,
-            fill: new Fill({color: 'blue'})
+            fill: new ol.style.Fill({color: 'blue'})
         })
     })
 };
