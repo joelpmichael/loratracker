@@ -113,7 +113,13 @@ function ReloadView() {
                     // only the OSM layer exists, create a new vector layer for our points
                     mapPoints = new ol.layer.VectorLayer({
                         style: function(feature) {
-                            return styles[feature.get('type')];
+                            featureStyle = styles[feature.get('type')];
+                            featureStyle.setText(
+                                new ol.style.Text({
+                                    text: 'Gateway ID' + gwId
+                                })
+                            );
+                            return featureStyle;
                         }
                     });
                 }
