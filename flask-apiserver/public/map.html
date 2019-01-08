@@ -21,26 +21,26 @@ var reloadTime = 120000; // milliseconds
 var defaultZoom = 10; // OpenLayers zoom level
 
 var styles = {
-    'selfGW': new ol.Style({
-        image: new ol.style.CircleStyle({
+    'selfGW': new ol.style.Style({
+        image: new ol.style.Circle({
             radius: 7,
             fill: new ol.style.Fill({color: 'red'})
         })
     }),
-    'otherGW': new ol.Style({
-        image: new ol.style.CircleStyle({
+    'otherGW': new ol.style.Style({
+        image: new ol.style.Circle({
             radius: 7,
             fill: new ol.style.Fill({color: 'green'})
         })
     }),
-    'selfTracker': new ol.Style({
-        image: new ol.style.CircleStyle({
+    'selfTracker': new ol.style.Style({
+        image: new ol.style.Circle({
             radius: 7,
             fill: new ol.style.Fill({color: 'black'})
         })
     }),
-    'otherTracker': new ol.Style({
-        image: new ol.style.CircleStyle({
+    'otherTracker': new ol.style.Style({
+        image: new ol.style.Circle({
             radius: 7,
             fill: new ol.style.Fill({color: 'blue'})
         })
@@ -80,12 +80,12 @@ function ReloadView() {
             var curLayers = map.getLayers();
             var curCenter = curView.getCenter();
             var curZoom = curView.getZoom();
-            var curExtent = curView.get(extent);
+            //var curExtent = curView.get(extent);
 
             var gwId;
             var newCenter;
             for (gwId in response) {
-                if (!response.hasOwnProperty(key)) continue; // skip loop if the property is from prototype - from https://stackoverflow.com/questions/921789/how-to-loop-through-a-plain-javascript-object-with-the-objects-as-members
+                if (!response.hasOwnProperty(gwId)) continue; // skip loop if the property is from prototype - from https://stackoverflow.com/questions/921789/how-to-loop-through-a-plain-javascript-object-with-the-objects-as-members
                 newCenter = (new ol.format.GeoJSON({dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'})).readFeature(response[gwId]);
             }
             var newZoom = defaultZoom;
@@ -99,7 +99,7 @@ function ReloadView() {
 
             var newView = new ol.View({
                 enableRotation: false,
-                extent: curExtent,
+//                extent: curExtent,
                 center: newCenter,
                 zoom: newZoom
             });
@@ -111,7 +111,7 @@ function ReloadView() {
                 var mapPoints;
                 if (curLayers.getLength() == 1) {
                     // only the OSM layer exists, create a new vector layer for our points
-                    mapPoints = new ol.layer.VectorLayer({
+                    mapPoints = new ol.layer.Vector({
                         style: function(feature) {
                             featureStyle = styles[feature.get('type')];
                             featureStyle.setText(
