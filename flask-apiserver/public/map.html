@@ -139,7 +139,12 @@ function ReloadView() {
                     });
                 }
                 else {
-                    var gwFeature = vectorPoints.getFeatureById(gwId);
+                    var gwFeature;
+                    try {
+                        gwFeature = vectorPoints.getFeatureById(gwId)
+                    } catch (e) {
+                        console.log("caught error " + e)
+                    }
                     if (typeof gwFeature !== 'undefined') {
                         vectorPoints.removeFeature(vectorPoints.getFeatureById(gwId));
                     }
