@@ -92,7 +92,7 @@ function ReloadView() {
             var newCenterGeom;
             for (gwId in response) {
                 if (!response.hasOwnProperty(gwId)) continue; // skip loop if the property is from prototype - from https://stackoverflow.com/questions/921789/how-to-loop-through-a-plain-javascript-object-with-the-objects-as-members
-		newCenterGeom = (new ol.format.GeoJSON({dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'})).readFeature(response[gwId]);
+		newCenterGeom = (new ol.format.GeoJSON({dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'})).readGeometry(response[gwId]);
                 newCenterCoOrd = ol.proj.fromLonLat([response[gwId]['coordinates'][0],response[gwId]['coordinates'][1]]); // dodgy hack
             }
             var newZoom = defaultZoom;
@@ -124,7 +124,7 @@ function ReloadView() {
                             featureStyle = styles[feature.get('type')];
                             featureStyle.setText(
                                 new ol.style.Text({
-                                    text: 'Gateway ID' + gwId
+                                    text: 'Gateway ID ' + gwId
                                 })
                             );
                             return featureStyle;
