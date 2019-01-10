@@ -223,7 +223,7 @@ function ReloadView() {
                     console.log("caught error " + e)
                 }
                 if (typeof gwFeature !== 'undefined' && gwFeature !== null) {
-                    if (gwFeature.get('type') == 'SelfGW') {
+                    if (gwFeature.get('type') == 'selfGW') {
                         // Don't remove a SelfGW, because it is updated separately and has a different style
                         continue;
                     }
