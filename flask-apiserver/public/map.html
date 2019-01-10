@@ -92,7 +92,7 @@ function ReloadView() {
             var newCenterGeom;
             for (gwId in response) {
                 if (!response.hasOwnProperty(gwId)) continue; // skip loop if the property is from prototype - from https://stackoverflow.com/questions/921789/how-to-loop-through-a-plain-javascript-object-with-the-objects-as-members
-		newCenterGeom = (new ol.format.GeoJSON({dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'})).readFeature(response[gwId]);
+	        	newCenterGeom = (new ol.format.GeoJSON({dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'})).readGeometry(response[gwId]);
                 newCenterCoOrd = ol.proj.fromLonLat([response[gwId]['coordinates'][0],response[gwId]['coordinates'][1]]); // dodgy hack
             }
             var newZoom = defaultZoom;
@@ -124,7 +124,7 @@ function ReloadView() {
                             featureStyle = styles[feature.get('type')];
                             featureStyle.setText(
                                 new ol.style.Text({
-                                    text: 'Gateway ID' + gwId
+                                    text: 'Gateway ID\n' + feature.getId()
                                 })
                             );
                             return featureStyle;
@@ -136,29 +136,27 @@ function ReloadView() {
                 }
 
                 vectorPoints = mapPoints.getSource();
-		if (typeof vectorPoints === 'undefined' || vectorPoints === null) {
+        		if (typeof vectorPoints === 'undefined' || vectorPoints === null) {
                     vectorPoints = new ol.source.Vector({
                         useSpatialIndex: false
                     });
                 }
-                else {
-                    var gwFeature;
-                    try {
-                        gwFeature = vectorPoints.getFeatureById(gwId)
-                    } catch (e) {
-                        console.log("caught error " + e)
-                    }
-                    if (typeof gwFeature !== 'undefined' && gwFeature !== null) {
-                        vectorPoints.removeFeature(vectorPoints.getFeatureById(gwId));
-                    }
+
+                var gwFeature;
+                try {
+                    gwFeature = vectorPoints.getFeatureById(gwId)
+                } catch (e) {
+                    console.log("caught error " + e)
                 }
-console.log("vectorPoints: %o", vectorPoints);
+                if (typeof gwFeature !== 'undefined' && gwFeature !== null) {
+                    vectorPoints.removeFeature(gwFeature);
+                }
+
                 var gwPoint = new ol.Feature({
                     type: 'selfGW',
                     geometry: newCenterGeom
                 });
                 gwPoint.setId(gwId);
-console.log("gwPoint: %o", gwPoint);
                 vectorPoints.addFeature(gwPoint);
 
                 mapPoints.setSource(vectorPoints);
@@ -169,6 +167,84 @@ console.log("gwPoint: %o", gwPoint);
     xhrGwLocSelf.responseType = 'json';
     xhrGwLocSelf.timeout = 2000;
     xhrGwLocSelf.send();
+
+    // set location of all gateway locations
+    var xhrGwLocAll = new XMLHttpRequest();
+    xhrGwLocAll.open("GET", "/gwlocation/all");
+    xhrGwLocAll.setRequestHeader("Content-Type", "application/json");
+    xhrGwLocAll.setRequestHeader("Accept", "application/json");
+    xhrGwLocAll.onreadystatechange = function () {
+        // async XHR callback
+        console.log("call UpdateViewGwLocAll with readyState: " + this.readyState + " and status: " + this.status);
+        if (this.readyState == 4 && this.status == 200) {
+            var response = this.response;
+            console.log("success response: %o", response);
+
+            var curLayers = map.getLayers();
+            var mapPoints;
+            if (curLayers.getLength() == 1) {
+                // only the OSM layer exists, create a new vector layer for our points
+                mapPoints = new ol.layer.Vector({
+                    style: function(feature) {
+                        featureStyle = styles[feature.get('type')];
+                        featureStyle.setText(
+                            new ol.style.Text({
+                                text: 'Gateway ID\n' + feature.getId()
+                            })
+                        );
+                        return featureStyle;
+                    }
+                });
+            }
+            else {
+                mapPoints = curLayers.pop();
+            }
+
+            vectorPoints = mapPoints.getSource();
+            if (typeof vectorPoints === 'undefined' || vectorPoints === null) {
+                vectorPoints = new ol.source.Vector({
+                    useSpatialIndex: false
+                });
+            }
+
+            for (gwId in response) {
+                if (!response.hasOwnProperty(gwId)) continue; // skip loop if the property is from prototype - from https://stackoverflow.com/questions/921789/how-to-loop-through-a-plain-javascript-object-with-the-objects-as-members
+                if (gwId === 'ffffffffffffffff') {
+                    // gwId === ffffffffffffffff means the centre of all gateways, so don't render that point
+                    continue;
+                }
+	        	var thisGwGeom = (new ol.format.GeoJSON({dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'})).readGeometry(response[gwId]);
+                // update point of this gateway
+                var gwFeature;
+                try {
+                    gwFeature = vectorPoints.getFeatureById(gwId)
+                } catch (e) {
+                    console.log("caught error " + e)
+                }
+                if (typeof gwFeature !== 'undefined' && gwFeature !== null) {
+                    if (gwFeature.get('type') == 'SelfGW') {
+                        // Don't remove a SelfGW, because it is updated separately and has a different style
+                        continue;
+                    }
+                    vectorPoints.removeFeature(gwFeature);
+                }
+
+                var gwPoint = new ol.Feature({
+                    type: 'otherGW',
+                    geometry: thisGwGeom
+                });
+                gwPoint.setId(gwId);
+                vectorPoints.addFeature(gwPoint);
+
+            }
+
+            mapPoints.setSource(vectorPoints);
+            curLayers.push(mapPoints);
+        }
+    };
+    xhrGwLocAll.responseType = 'json';
+    xhrGwLocAll.timeout = 2000;
+    xhrGwLocAll.send();
 }
 
 ReloadView();
