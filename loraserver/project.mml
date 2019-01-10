@@ -1,0 +1,4 @@
+        "dbname": "loratracker",
+        "host": "localhost",
+        "user": "loratracker",
+        "password": "verysecretpassword"

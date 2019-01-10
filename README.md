@@ -1,1 +1,1 @@
-# loratracker
+# Standalone LoRa gateway and GPS tracker web application example
