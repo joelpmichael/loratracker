@@ -38,13 +38,13 @@ var styles = {
             fill: new ol.style.Fill({color: 'green'})
         })
     }),
-    'selfTracker': new ol.style.Style({
+    'selfTR': new ol.style.Style({
         image: new ol.style.Circle({
             radius: 7,
             fill: new ol.style.Fill({color: 'black'})
         })
     }),
-    'otherTracker': new ol.style.Style({
+    'otherTR': new ol.style.Style({
         image: new ol.style.Circle({
             radius: 7,
             fill: new ol.style.Fill({color: 'blue'})
@@ -248,7 +248,6 @@ function ReloadView() {
                 });
                 gwPoint.setId(gwId);
                 vectorPoints.addFeature(gwPoint);
-
             }
 
             mapPoints.setSource(vectorPoints);
@@ -360,7 +359,6 @@ function ReloadView() {
                 });
                 trPoint.setId(trId);
                 vectorPoints.addFeature(trPoint);
-
             }
 
             mapPoints.setSource(vectorPoints);
@@ -370,6 +368,77 @@ function ReloadView() {
     xhrTrLocAll.responseType = 'json';
     xhrTrLocAll.timeout = xhrTimeout;
     xhrTrLocAll.send();
+
+    // set location of selected tracker
+    if (selfTrId !== null) {
+        var xhrTrLocSelf = new XMLHttpRequest();
+        xhrTrLocSelf.open("GET", "/trlocation/" + selfTrId);
+        xhrTrLocSelf.setRequestHeader("Content-Type", "application/json");
+        xhrTrLocSelf.setRequestHeader("Accept", "application/json");
+        xhrTrLocSelf.onreadystatechange = function () {
+            // async XHR callback
+            console.log("call UpdateViewTrLocSelf with readyState: " + this.readyState + " and status: " + this.status);
+            if (this.readyState == 4 && this.status == 200) {
+                var response = this.response;
+                console.log("success response: %o", response);
+
+                var curLayers = map.getLayers();
+                var mapPoints;
+                if (curLayers.getLength() == 1) {
+                    // only the OSM layer exists, create a new vector layer for our points
+                    mapPoints = new ol.layer.Vector({
+                        style: function(feature) {
+                            featureStyle = styles[feature.get('type')];
+                            featureStyle.setText(
+                                new ol.style.Text({
+                                    text: feature.get('name')
+                                })
+                            );
+                            return featureStyle;
+                        }
+                    });
+                }
+                else {
+                    mapPoints = curLayers.pop();
+                }
+
+                vectorPoints = mapPoints.getSource();
+                if (typeof vectorPoints === 'undefined' || vectorPoints === null) {
+                    vectorPoints = new ol.source.Vector({
+                        useSpatialIndex: false
+                    });
+                }
+
+                for (trId in response) {
+                    if (!response.hasOwnProperty(trId)) continue; // skip loop if the property is from prototype - from https://stackoverflow.com/questions/921789/how-to-loop-through-a-plain-javascript-object-with-the-objects-as-members
+                    var thisTrGeom = (new ol.format.GeoJSON({dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'})).readGeometry(response[trId]);
+                    // update point of this gateway
+                    var trFeature;
+                    try {
+                        trFeature = vectorPoints.getFeatureById(trId)
+                    } catch (e) {
+                        console.log("caught error " + e)
+                    }
+                    if (typeof trFeature !== 'undefined' && trFeature !== null) {
+                        vectorPoints.removeFeature(trFeature);
+                    }
+
+                    var trPoint = new ol.Feature({
+                        type: 'selfTR',
+                        geometry: thisTrGeom
+                    });
+                    trPoint.setId(trId);
+                    vectorPoints.addFeature(trPoint);
+                }
+
+                mapPoints.setSource(vectorPoints);
+                curLayers.push(mapPoints);
+            }
+        };
+        xhrTrLocSelf.responseType = 'json';
+        xhrTrLocSelf.timeout = xhrTimeout;
+        xhrTrLocSelf.send();
+    }
 }
 
 ReloadView();
