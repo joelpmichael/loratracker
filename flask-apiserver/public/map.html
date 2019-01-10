@@ -20,6 +20,8 @@
 var reloadTime = 120000; // milliseconds
 var xhrTimeout = 10000; // milliseconds
 var defaultZoom = 10; // OpenLayers zoom level
+var defaultMaxZoom = 19;
+var defaultMinZoom = 10;
 
 var styles = {
     'selfGW': new ol.style.Style({
@@ -109,7 +111,9 @@ function ReloadView() {
                 enableRotation: false,
                 extent: curExtent,
                 center: newCenterCoOrd,
-                zoom: newZoom
+                zoom: newZoom,
+                minZoom: defaultMinZoom,
+                maxZoom: defaultMaxZoom
             });
 
             map.setView(newView);
@@ -246,6 +250,42 @@ function ReloadView() {
     xhrGwLocAll.responseType = 'json';
     xhrGwLocAll.timeout = xhrTimeout;
     xhrGwLocAll.send();
+
+    var xhrGwAreaSelf = new XMLHttpRequest();
+    xhrGwAreaSelf.open("GET", "/gwarea/self");
+    xhrGwAreaSelf.setRequestHeader("Content-Type", "application/json");
+    xhrGwAreaSelf.setRequestHeader("Accept", "application/json");
+    xhrGwAreaSelf.onreadystatechange = function () {
+        // async XHR callback
+        console.log("call UpdateViewGwLocSelf with readyState: " + this.readyState + " and status: " + this.status);
+        if (this.readyState == 4 && this.status == 200) {
+            var response = this.response;
+            console.log("success response: %o", response);
+
+            var curView = map.getView();
+            var curCenterCoOrd = curView.getCenter();
+            var curZoom = curView.getZoom();
+            var newExtent = null;
+            for (gwId in response) {
+                var thisGwGeom = (new ol.format.GeoJSON({dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'})).readGeometry(response[gwId]);
+                newExtent = thisGwGeom.getExtent();
+            }
+
+            var newView = new ol.View({
+                enableRotation: false,
+                extent: newExtent,
+                center: curCenterCoOrd,
+                zoom: curZoom,
+                minZoom: defaultMinZoom,
+                maxZoom: defaultMaxZoom
+            });
+
+            map.setView(newView);
+        }
+    };
+    xhrGwAreaSelf.responseType = 'json';
+    xhrGwAreaSelf.timeout = xhrTimeout;
+    xhrGwAreaSelf.send();
 }
 
 ReloadView();
