@@ -18,6 +18,7 @@
         <script type="text/javascript">
 
 var reloadTime = 120000; // milliseconds
+var xhrTimeout = 10000; // milliseconds
 var defaultZoom = 10; // OpenLayers zoom level
 
 var styles = {
@@ -165,7 +166,7 @@ function ReloadView() {
         }
     };
     xhrGwLocSelf.responseType = 'json';
-    xhrGwLocSelf.timeout = 2000;
+    xhrGwLocSelf.timeout = xhrTimeout;
     xhrGwLocSelf.send();
 
     // set location of all gateway locations
@@ -243,7 +244,7 @@ function ReloadView() {
         }
     };
     xhrGwLocAll.responseType = 'json';
-    xhrGwLocAll.timeout = 2000;
+    xhrGwLocAll.timeout = xhrTimeout;
     xhrGwLocAll.send();
 }
 
