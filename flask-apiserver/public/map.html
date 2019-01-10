@@ -355,6 +355,7 @@ function ReloadView() {
 
                 var trPoint = new ol.Feature({
                     type: 'otherTR',
+                    name: 'Tracker ' + trId,
                     geometry: thisTrGeom
                 });
                 trPoint.setId(trId);
@@ -425,6 +426,7 @@ function ReloadView() {
 
                     var trPoint = new ol.Feature({
                         type: 'selfTR',
+                        name: 'Tracker ' + trId,
                         geometry: thisTrGeom
                     });
                     trPoint.setId(trId);
