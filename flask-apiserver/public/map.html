@@ -23,6 +23,8 @@ var defaultZoom = 10; // OpenLayers zoom level
 var defaultMaxZoom = 19;
 var defaultMinZoom = 10;
 
+// make things pretty
+// these styles are applied as defaults
 var styles = {
     'selfGW': new ol.style.Style({
         image: new ol.style.Circle({
@@ -49,6 +51,9 @@ var styles = {
         })
     })
 };
+
+var selfGwId = null;
+var selfTrId = null;
 
 // create initial map without a view
 // view will be added later during XHR async callback
@@ -95,7 +100,8 @@ function ReloadView() {
             var newCenterGeom;
             for (gwId in response) {
                 if (!response.hasOwnProperty(gwId)) continue; // skip loop if the property is from prototype - from https://stackoverflow.com/questions/921789/how-to-loop-through-a-plain-javascript-object-with-the-objects-as-members
-	        	newCenterGeom = (new ol.format.GeoJSON({dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'})).readGeometry(response[gwId]);
+	        	selfGwId = gwId;
+                newCenterGeom = (new ol.format.GeoJSON({dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'})).readGeometry(response[gwId]);
                 newCenterCoOrd = ol.proj.fromLonLat([response[gwId]['coordinates'][0],response[gwId]['coordinates'][1]]); // dodgy hack
             }
             var newZoom = defaultZoom;
@@ -129,7 +135,7 @@ function ReloadView() {
                             featureStyle = styles[feature.get('type')];
                             featureStyle.setText(
                                 new ol.style.Text({
-                                    text: 'Gateway ID\n' + feature.getId()
+                                    text: feature.get('name')
                                 })
                             );
                             return featureStyle;
@@ -159,6 +165,7 @@ function ReloadView() {
 
                 var gwPoint = new ol.Feature({
                     type: 'selfGW',
+                    name: 'Gateway ' + gwId,
                     geometry: newCenterGeom
                 });
                 gwPoint.setId(gwId);
@@ -194,7 +201,7 @@ function ReloadView() {
                         featureStyle = styles[feature.get('type')];
                         featureStyle.setText(
                             new ol.style.Text({
-                                text: 'Gateway ID\n' + feature.getId()
+                                text: feature.get('name')
                             })
                         );
                         return featureStyle;
@@ -236,6 +243,7 @@ function ReloadView() {
 
                 var gwPoint = new ol.Feature({
                     type: 'otherGW',
+                    name: 'Gateway ' + gwId,
                     geometry: thisGwGeom
                 });
                 gwPoint.setId(gwId);
@@ -251,13 +259,15 @@ function ReloadView() {
     xhrGwLocAll.timeout = xhrTimeout;
     xhrGwLocAll.send();
 
+    // set render area of this gateway
+    // FIXME - ol5.3.0 seems to not like this
     var xhrGwAreaSelf = new XMLHttpRequest();
     xhrGwAreaSelf.open("GET", "/gwarea/self");
     xhrGwAreaSelf.setRequestHeader("Content-Type", "application/json");
     xhrGwAreaSelf.setRequestHeader("Accept", "application/json");
     xhrGwAreaSelf.onreadystatechange = function () {
         // async XHR callback
-        console.log("call UpdateViewGwLocSelf with readyState: " + this.readyState + " and status: " + this.status);
+        console.log("call UpdateViewGwAreaSelf with readyState: " + this.readyState + " and status: " + this.status);
         if (this.readyState == 4 && this.status == 200) {
             var response = this.response;
             console.log("success response: %o", response);
@@ -286,6 +296,80 @@ function ReloadView() {
     xhrGwAreaSelf.responseType = 'json';
     xhrGwAreaSelf.timeout = xhrTimeout;
     xhrGwAreaSelf.send();
+
+    // set location of all trackers
+    var xhrTrLocAll = new XMLHttpRequest();
+    xhrTrLocAll.open("GET", "/trlocation/all");
+    xhrTrLocAll.setRequestHeader("Content-Type", "application/json");
+    xhrTrLocAll.setRequestHeader("Accept", "application/json");
+    xhrTrLocAll.onreadystatechange = function () {
+        // async XHR callback
+        console.log("call UpdateViewTrLocAll with readyState: " + this.readyState + " and status: " + this.status);
+        if (this.readyState == 4 && this.status == 200) {
+            var response = this.response;
+            console.log("success response: %o", response);
+
+            var curLayers = map.getLayers();
+            var mapPoints;
+            if (curLayers.getLength() == 1) {
+                // only the OSM layer exists, create a new vector layer for our points
+                mapPoints = new ol.layer.Vector({
+                    style: function(feature) {
+                        featureStyle = styles[feature.get('type')];
+                        featureStyle.setText(
+                            new ol.style.Text({
+                                text: feature.get('name')
+                            })
+                        );
+                        return featureStyle;
+                    }
+                });
+            }
+            else {
+                mapPoints = curLayers.pop();
+            }
+
+            vectorPoints = mapPoints.getSource();
+            if (typeof vectorPoints === 'undefined' || vectorPoints === null) {
+                vectorPoints = new ol.source.Vector({
+                    useSpatialIndex: false
+                });
+            }
+
+            for (trId in response) {
+                if (!response.hasOwnProperty(trId)) continue; // skip loop if the property is from prototype - from https://stackoverflow.com/questions/921789/how-to-loop-through-a-plain-javascript-object-with-the-objects-as-members
+	        	var thisTrGeom = (new ol.format.GeoJSON({dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'})).readGeometry(response[trId]);
+                // update point of this gateway
+                var trFeature;
+                try {
+                    trFeature = vectorPoints.getFeatureById(trId)
+                } catch (e) {
+                    console.log("caught error " + e)
+                }
+                if (typeof trFeature !== 'undefined' && trFeature !== null) {
+                    if (trFeature.get('type') == 'selfTR') {
+                        // Don't remove a selfTR, because it is updated separately and has a different style
+                        continue;
+                    }
+                    vectorPoints.removeFeature(trFeature);
+                }
+
+                var trPoint = new ol.Feature({
+                    type: 'otherTR',
+                    geometry: thisTrGeom
+                });
+                trPoint.setId(trId);
+                vectorPoints.addFeature(trPoint);
+
+            }
+
+            mapPoints.setSource(vectorPoints);
+            curLayers.push(mapPoints);
+        }
+    };
+    xhrTrLocAll.responseType = 'json';
+    xhrTrLocAll.timeout = xhrTimeout;
+    xhrTrLocAll.send();
 }
 
 ReloadView();
