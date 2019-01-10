@@ -99,7 +99,7 @@ def uplink():
 # - "mid" (return middle of all gateway locations)
 # - "all" (return all gateway locations)
 @app.route('/gwlocation/<gateway>', methods = ['GET'])
-#@limit_content_type('application/json')
+@limit_content_type('application/json')
 def gwlocation(gateway):
     # set up DB connection
     dbconn = psycopg2.connect(dbname=app.config['DBNAME'], user=app.config['DBUSER'], password=app.config['DBPASS'], host=app.config['DBHOST'], port=app.config['DBPORT'])
@@ -151,7 +151,7 @@ def gwlocation(gateway):
     return jsonify(gateways)
 
 @app.route('/gwarea/<gateway>', methods = ['GET'])
-#@limit_content_type('application/json')
+@limit_content_type('application/json')
 def gwarea(gateway):
     # set up DB connection
     dbconn = psycopg2.connect(dbname=app.config['DBNAME'], user=app.config['DBUSER'], password=app.config['DBPASS'], host=app.config['DBHOST'], port=app.config['DBPORT'])
@@ -204,6 +204,48 @@ def gwarea(gateway):
         gateways[record[0]] = geojson
     
     return jsonify(gateways)
+
+# return location of a requested tracker
+# tracker ID must be one of:
+# - 16 hex digits
+# - "all" (return all tracker locations)
+@app.route('/trlocation/<tracker>', methods = ['GET'])
+@limit_content_type('application/json')
+def trlocation(tracker):
+    # set up DB connection
+    dbconn = psycopg2.connect(dbname=app.config['DBNAME'], user=app.config['DBUSER'], password=app.config['DBPASS'], host=app.config['DBHOST'], port=app.config['DBPORT'])
+    dbconn.autocommit = True
+    cur = dbconn.cursor()
+
+    if tracker == 'all':
+        # return the location of all gateway last known locations
+        cur.execute("""SELECT DISTINCT ON (dev_eui) dev_eui, ST_AsGeoJSON(gps_location)
+            FROM tracker_data
+            ORDER BY dev_eui, gps_timestamp DESC;""",
+        )
+    else:
+        if len(tracker) != 16: # gateway ID is 16 hex characters, make sure it is
+            abort(404)
+        if not all(c in string.hexdigits for c in tracker):
+            abort(404)
+        # return the last known location of the requested gateway
+        cur.execute("""SELECT DISTINCT ON (dev_eui) dev_eui, ST_AsGeoJSON(gps_location)
+            FROM tracker_data
+            WHERE dev_eui = %s
+            ORDER BY dev_eui, gps_timestamp DESC;""",
+            (tracker,)
+        )
+
+    if cur.rowcount == 0:
+        # gateway not found
+        abort(404)
+        
+    trackers = {}
+    for record in cur:
+        geojson = json.loads(record[1])
+        trackers[record[0]] = geojson
+    
+    return jsonify(trackers)
 
 if __name__ == '__main__':
     app.run()
