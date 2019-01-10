@@ -5,7 +5,7 @@
         <link rel="stylesheet" href="v5.3.0-dist/ol.css" type="text/css">
         <style>
             .map {
-                height: 75%;
+                height: 800px;
                 width: 100%;
             }
         </style>
@@ -74,11 +74,11 @@ function ReloadView() {
         console.log("call UpdateViewGwLocSelf with readyState: " + this.readyState + " and status: " + this.status);
         if (this.readyState == 4 && this.status == 200) {
             var response = this.response;
-            console.log("success response: " + response)
+            console.log("success response: %o", response);
 
             var curView = map.getView();
             var curLayers = map.getLayers();
-            var curCenter = curView.getCenter();
+            var curCenterCoOrd = curView.getCenter();
             var curZoom = curView.getZoom();
             var curExtent;
             try {
@@ -88,26 +88,29 @@ function ReloadView() {
             }
 
             var gwId;
-            var newCenter;
+            var newCenterCoOrd = ol.proj.fromLonLat([144.963131, -37.812288]); // Melbourne GPO
+            var newCenterGeom;
             for (gwId in response) {
                 if (!response.hasOwnProperty(gwId)) continue; // skip loop if the property is from prototype - from https://stackoverflow.com/questions/921789/how-to-loop-through-a-plain-javascript-object-with-the-objects-as-members
-                newCenter = (new ol.format.GeoJSON({dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'})).readFeature(response[gwId]);
+		newCenterGeom = (new ol.format.GeoJSON({dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'})).readFeature(response[gwId]);
+                newCenterCoOrd = ol.proj.fromLonLat([response[gwId]['coordinates'][0],response[gwId]['coordinates'][1]]); // dodgy hack
             }
             var newZoom = defaultZoom;
 
-            if (typeof curCenter !== 'undefined') {
-                newCenter = curCenter;
+            if (typeof curCenterCoOrd !== 'undefined' && curCenterCoOrd !== null) {
+                newCenterCoOrd = curCenterCoOrd;
             }
-            if (typeof curZoom !== 'undefined') {
+            if (typeof curZoom !== 'undefined' && curZoom !== null) {
                 newZoom = curZoom;
             }
 
             var newView = new ol.View({
                 enableRotation: false,
                 extent: curExtent,
-                center: newCenter,
+                center: newCenterCoOrd,
                 zoom: newZoom
             });
+
             map.setView(newView);
 
             // update point of this gateway
@@ -133,8 +136,8 @@ function ReloadView() {
                 }
 
                 vectorPoints = mapPoints.getSource();
-                if (typeof vectorPoints === 'undefined') {
-                    vectorPoints = new ol.source.VectorSource({
+		if (typeof vectorPoints === 'undefined' || vectorPoints === null) {
+                    vectorPoints = new ol.source.Vector({
                         useSpatialIndex: false
                     });
                 }
@@ -145,16 +148,17 @@ function ReloadView() {
                     } catch (e) {
                         console.log("caught error " + e)
                     }
-                    if (typeof gwFeature !== 'undefined') {
+                    if (typeof gwFeature !== 'undefined' && gwFeature !== null) {
                         vectorPoints.removeFeature(vectorPoints.getFeatureById(gwId));
                     }
                 }
-
+console.log("vectorPoints: %o", vectorPoints);
                 var gwPoint = new ol.Feature({
                     type: 'selfGW',
-                    geometry: newCenter
+                    geometry: newCenterGeom
                 });
                 gwPoint.setId(gwId);
+console.log("gwPoint: %o", gwPoint);
                 vectorPoints.addFeature(gwPoint);
 
                 mapPoints.setSource(vectorPoints);
