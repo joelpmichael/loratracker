@@ -295,5 +295,47 @@ def gwlatest(gateway):
     
     return jsonify(gateways)
 
+# return latest timestamp of requested gateway (for sync purposes)
+# gateway ID must be one of:
+# - 16 hex digits
+# - "self" (return gateway ID defined in config, or "mid" if not defined)
+# - "all" (return all gateway locations)
+@app.route('/pull', methods = ['POST'])
+@limit_content_type('application/json')
+def pull():
+    payload = request.get_json()
+    
+    # set up DB connection
+    dbconn = psycopg2.connect(dbname=app.config['DBNAME'], user=app.config['DBUSER'], password=app.config['DBPASS'], host=app.config['DBHOST'], port=app.config['DBPORT'])
+    dbconn.autocommit = True
+    cur = dbconn.cursor()
+
+    # construct SQL statement with appropriate number of boolean operators in the WHERE clause
+    sql = """SELECT gw_id, gw_location, app_id, dev_eui, gw_rx_timestamp, gw_rx_rssi, gw_rx_snr, gps_timestamp, gps_location
+FROM tracker_data
+"""
+    where = " WHERE "
+    first = True
+    args = []
+    for gw_id in payload.keys():
+        args.append(gw_id)
+        args.append(payload[gw_id])
+        sql += where
+        sql += "(gw_id = %s AND gw_rx_timestamp > %s)\n"
+        if first:
+            first = False
+            where = " OR "
+    cur.execute(sql, args)
+    if cur.rowcount == 0:
+        # gateway not found
+        abort(404)
+    
+    # can't use fetchall because jsonify(datetime) doesn't keep microsecond timestamps, need to use .isoformat() instead
+    data = []
+    for record in cur:
+        data.append([record[0], record[1], record[2], record[3], record[4].isoformat(), record[5], record[6], record[7].isoformat(), record[8]])
+    
+    return jsonify(data)
+
 if __name__ == '__main__':
     app.run()
