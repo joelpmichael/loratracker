@@ -291,8 +291,7 @@ def gwlatest(gateway):
         
     gateways = {}
     for record in cur:
-        geojson = json.loads(record[1])
-        gateways[record[0]] = geojson
+        gateways[record[0]] = record[1]
     
     return jsonify(gateways)
 
