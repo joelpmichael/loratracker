@@ -83,12 +83,18 @@ def uplink():
 
     # insert into the db
     dbconn = psycopg2.connect(dbname=app.config['DBNAME'], user=app.config['DBUSER'], password=app.config['DBPASS'], host=app.config['DBHOST'], port=app.config['DBPORT'])
-    dbconn.autocommit = True
+    dbconn.autocommit = False
     cur = dbconn.cursor()
     cur.execute("""INSERT INTO tracker_data (gw_id, gw_location, app_id, dev_eui, gw_rx_timestamp, gw_rx_rssi, gw_rx_snr, gps_timestamp, gps_location) 
         VALUES (%s, ST_SetSRID(st_makepoint(%s,%s,%s),4326), %s, %s, %s, %s, %s, %s, ST_SetSRID(st_makepoint(%s,%s,%s),4326));""", 
         (gw_id, gw_lon, gw_lat, gw_alt, app_id, dev_eui, gw_rx_timestamp, gw_rx_rssi, gw_rx_snr, gps_timestamp, f_lon, f_lat, f_alt)
     )
+    if cur.rowcount != 1:
+        # insert failed?
+        dbconn.rollback()
+        abort(500)
+    
+    dbconn.commit()
 
     return ('', 204) # 204 = HTTP no content
 
@@ -252,54 +258,32 @@ def trlocation(tracker):
 # - 16 hex digits
 # - "self" (return gateway ID defined in config, or "mid" if not defined)
 # - "all" (return all gateway locations)
-@app.route('/gwlatest/<gateway>', methods = ['GET'])
+@app.route('/gwlatest', methods = ['GET'])
 @limit_content_type('application/json')
-def gwlatest(gateway):
+def gwlatest():
     # set up DB connection
     dbconn = psycopg2.connect(dbname=app.config['DBNAME'], user=app.config['DBUSER'], password=app.config['DBPASS'], host=app.config['DBHOST'], port=app.config['DBPORT'])
     dbconn.autocommit = True
     cur = dbconn.cursor()
 
-    if gateway == 'self':
-        # we are trying to find ourself
-        if app.config['GATEWAYID'] == None:
-            gateway = 'all'
-        else:
-            gateway = app.config['GATEWAYID']
-    if gateway == 'all':
-        # return the latest timestamp of all gateway rx timestamps
-        cur.execute("""SELECT DISTINCT ON (gw_id) gw_id, gw_rx_timestamp
-            FROM tracker_data
-            ORDER BY gw_id, gw_rx_timestamp DESC;""",
-        )
-    else:
-        if len(gateway) != 16: # gateway ID is 16 hex characters, make sure it is
-            abort(404)
-        if not all(c in string.hexdigits for c in gateway):
-            abort(404)
-        # return the latest timestamp of the requested gateway
-        cur.execute("""SELECT DISTINCT ON (gw_id) gw_id, gw_rx_timestamp
-            FROM tracker_data
-            WHERE gw_id = %s
-            ORDER BY gw_id, gw_rx_timestamp DESC;""",
-            (gateway,)
-        )
+    # return the latest timestamp of all gateway rx timestamps
+    cur.execute("""SELECT DISTINCT ON (gw_id) gw_id, gw_rx_timestamp
+        FROM tracker_data
+        ORDER BY gw_id, gw_rx_timestamp DESC;""",
+    )
 
-    if cur.rowcount == 0:
-        # gateway not found
-        abort(404)
-        
     gateways = {}
     for record in cur:
         gateways[record[0]] = record[1].isoformat()
     
     return jsonify(gateways)
 
-# return latest timestamp of requested gateway (for sync purposes)
-# gateway ID must be one of:
-# - 16 hex digits
-# - "self" (return gateway ID defined in config, or "mid" if not defined)
-# - "all" (return all gateway locations)
+# return tracker data later than the given timestamp for the given gateway
+# allow to specify multiple gateways with different timestamps
+# JSON request data format:
+# {
+#    "gateway id": "timestamp"
+# }
 @app.route('/pull', methods = ['POST'])
 @limit_content_type('application/json')
 def pull():
@@ -327,7 +311,7 @@ FROM tracker_data
             where = " OR "
     cur.execute(sql, args)
     if cur.rowcount == 0:
-        # gateway not found
+        # data not found
         abort(404)
     
     # can't use fetchall because jsonify(datetime) doesn't keep microsecond timestamps, need to use .isoformat() instead
@@ -336,6 +320,46 @@ FROM tracker_data
         data.append([record[0], record[1], record[2], record[3], record[4].isoformat(), record[5], record[6], record[7].isoformat(), record[8]])
     
     return jsonify(data)
+
+# insert tracker data from remote gateways
+# JSON request data format:
+# [
+#   [
+#       gw_id,
+#       gw_location,
+#       app_id,
+#       dev_eui,
+#       gw_rx_timestamp,
+#       gw_rx_rssi,
+#       gw_rx_snr,
+#       gps_timestamp,
+#       gps_location
+#   ]
+# ]
+@app.route('/push', methods = ['POST'])
+@limit_content_type('application/json')
+def push():
+    payload = request.get_json()
+    
+    # set up DB connection
+    dbconn = psycopg2.connect(dbname=app.config['DBNAME'], user=app.config['DBUSER'], password=app.config['DBPASS'], host=app.config['DBHOST'], port=app.config['DBPORT'])
+    dbconn.autocommit = False # run inserts inside a transaction
+    cur = dbconn.cursor()
+
+    # construct SQL statement with appropriate number of boolean operators in the WHERE clause
+    sql = """INSERT INTO tracker_data(gw_id, gw_location, app_id, dev_eui, gw_rx_timestamp, gw_rx_rssi, gw_rx_snr, gps_timestamp, gps_location)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+"""
+    for record in payload:
+        cur.execute(sql, record)
+        if cur.rowcount != 1:
+            # insert failed?
+            dbconn.rollback()
+            abort(500)
+    
+    dbconn.commit()
+
+    return ('', 204) # 204 = HTTP no content
 
 if __name__ == '__main__':
     app.run()
