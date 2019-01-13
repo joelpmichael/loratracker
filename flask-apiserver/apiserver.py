@@ -247,5 +247,54 @@ def trlocation(tracker):
     
     return jsonify(trackers)
 
+# return latest timestamp of requested gateway (for sync purposes)
+# gateway ID must be one of:
+# - 16 hex digits
+# - "self" (return gateway ID defined in config, or "mid" if not defined)
+# - "all" (return all gateway locations)
+@app.route('/gwlatest/<gateway>', methods = ['GET'])
+@limit_content_type('application/json')
+def gwlatest(gateway):
+    # set up DB connection
+    dbconn = psycopg2.connect(dbname=app.config['DBNAME'], user=app.config['DBUSER'], password=app.config['DBPASS'], host=app.config['DBHOST'], port=app.config['DBPORT'])
+    dbconn.autocommit = True
+    cur = dbconn.cursor()
+
+    if gateway == 'self':
+        # we are trying to find ourself
+        if app.config['GATEWAYID'] == None:
+            gateway = 'all'
+        else:
+            gateway = app.config['GATEWAYID']
+    if gateway == 'all':
+        # return the latest timestamp of all gateway rx timestamps
+        cur.execute("""SELECT DISTINCT ON (gw_id) gw_id, gw_rx_timestamp
+            FROM tracker_data
+            ORDER BY gw_id, gw_rx_timestamp DESC;""",
+        )
+    else:
+        if len(gateway) != 16: # gateway ID is 16 hex characters, make sure it is
+            abort(404)
+        if not all(c in string.hexdigits for c in gateway):
+            abort(404)
+        # return the latest timestamp of the requested gateway
+        cur.execute("""SELECT DISTINCT ON (gw_id) gw_id, gw_rx_timestamp
+            FROM tracker_data
+            WHERE gw_id = %s
+            ORDER BY gw_id, gw_rx_timestamp DESC;""",
+            (gateway,)
+        )
+
+    if cur.rowcount == 0:
+        # gateway not found
+        abort(404)
+        
+    gateways = {}
+    for record in cur:
+        geojson = json.loads(record[1])
+        gateways[record[0]] = geojson
+    
+    return jsonify(gateways)
+
 if __name__ == '__main__':
     app.run()
