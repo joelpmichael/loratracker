@@ -291,7 +291,7 @@ def gwlatest(gateway):
         
     gateways = {}
     for record in cur:
-        gateways[record[0]] = record[1]
+        gateways[record[0]] = record[1].isoformat()
     
     return jsonify(gateways)
 
