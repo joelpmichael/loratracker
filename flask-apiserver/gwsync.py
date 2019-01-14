@@ -62,10 +62,10 @@ headers = {
 
 # grab timestamps
 l_conn.request('GET', args.local_uri_base + '/gwlatest', None, headers)
-local_latest = json.loads(l_conn.getresponse().read())
+local_latest = json.loads(l_conn.getresponse().read().decode())
 
 r_conn.request('GET', args.uri_base + '/gwlatest', None, headers)
-remote_latest = json.loads(r_conn.getresponse().read())
+remote_latest = json.loads(r_conn.getresponse().read().decode())
 
 push_list = {}
 pull_list = {}
