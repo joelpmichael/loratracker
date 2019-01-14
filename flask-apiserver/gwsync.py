@@ -73,9 +73,9 @@ pull_list = {}
 for gw_id in local_latest.keys():
     # timestamps are in iso8601 format, eg 2019-01-03T22:48:16.080583+00:00
     # python <3.7 doesn't have datetime.fromisoformat() so use strptime
-    local_ts = datetime.strptime('%Y-%m-%dT%H:%M:%S.%f%z', local_latest[gw_id])
+    local_ts = datetime.strptime(local_latest[gw_id], '%Y-%m-%dT%H:%M:%S.%f%z')
     if gw_id in remote_latest:
-        remote_ts = datetime.strptime('%Y-%m-%dT%H:%M:%S.%f%z', remote_latest[gw_id])
+        remote_ts = datetime.strptime(remote_latest[gw_id], '%Y-%m-%dT%H:%M:%S.%f%z')
         # remove key from remote_latest, because anything left will be added to the pull list
         del remote_latest[gw_id]
         if local_ts < remote_ts:

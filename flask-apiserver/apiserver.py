@@ -275,7 +275,8 @@ def gwlatest():
     gateways = {}
     for record in cur:
         # need to use strftime becuase .isoformat generates an unparseable timezone
-        gateways[record[0]] = record[1].strftime('%Y-%m-%dT%H:%M:%S.%f%z')
+        #gateways[record[0]] = record[1].strftime('%Y-%m-%dT%H:%M:%S.%f%z')
+        gateways[record[0]] = record[1].isoformat()
     
     return jsonify(gateways)
 
