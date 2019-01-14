@@ -69,3 +69,30 @@ remote_latest = json.loads(r_conn.getresponse().read().decode())
 
 push_list = {}
 pull_list = {}
+
+for gw_id in local_latest.keys():
+    # timestamps are in iso8601 format, eg 2019-01-03T22:48:16.080583+00:00
+    # python <3.7 doesn't have datetime.fromisoformat() so use strptime
+    local_ts = datetime.strptime('%Y-%m-%dT%H:%M:%S.%f%z', local_latest[gw_id])
+    if gw_id in remote_latest:
+        remote_ts = datetime.strptime('%Y-%m-%dT%H:%M:%S.%f%z', remote_latest[gw_id])
+        # remove key from remote_latest, because anything left will be added to the pull list
+        del remote_latest[gw_id]
+        if local_ts < remote_ts:
+            print('PULL {} at {}'.format(gw_id, local_ts.isoformat()))
+            pull_list[gw_id] = local_ts
+        elif local_ts > remote_ts:
+            print('PUSH {} at {}'.format(gw_id, remote_ts.isoformat()))
+            push_list[gw_id] = remote_ts
+        else:
+            # if timestamps match then no need to push or pull
+            print('MATCH {} at {}'.format(gw_id, local_ts.isoformat()))
+    else:
+        # remote doesn't have this gw, push all
+        print('PUSH {} at min'.format(gw_id))
+        push_list[gw_id] = datetime.min.isoformat()
+
+for gw_id in remote_latest.keys():
+    # anything left in remote_latest will be new
+    print('PULL {} at min'.format(gw_id))
+    pull_list[gw_id] = datetime.min.isoformat()
