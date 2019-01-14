@@ -9,13 +9,13 @@
 import argparse
 parser = argparse.ArgumentParser(description='HTTP JSON server')
 
-parser.add_argument('-h', '--remote-host',
+parser.add_argument('-r', '--remote-host',
                     type=str,
                     required=True,
                     help='Remote host to connect to',
 )
 
-parser.add_argument('-H', '--local-host',
+parser.add_argument('-l', '--local-host',
                     type=str,
                     default='127.0.0.1',
                     help='Local host to connect to (default 127.0.0.1)',
@@ -27,13 +27,13 @@ parser.add_argument('-s', '--https',
                     help='Use HTTPS instead of HTTP (default use HTTP)',
 )
 
-parser.add_argument('-u', '--uri-base',
+parser.add_argument('-b', '--uri-base',
                     type=str,
                     default='',
                     help='Remote URI base for constructing request URLs (default /)',
 )
 
-parser.add_argument('-U', '--local-uri-base',
+parser.add_argument('-B', '--local-uri-base',
                     type=str,
                     default='',
                     help='Local URI base for constructing request URLs (default /)',
@@ -64,7 +64,7 @@ headers = {
 l_conn.request('GET', args.local_uri_base + '/gwlatest', None, headers)
 local_latest = json.loads(l_conn.getresponse().read())
 
-r_conn.request('GET', args.local_uri_base + '/gwlatest', None, headers)
+r_conn.request('GET', args.uri_base + '/gwlatest', None, headers)
 remote_latest = json.loads(r_conn.getresponse().read())
 
 push_list = {}
