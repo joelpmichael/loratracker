@@ -93,6 +93,6 @@ for gw_id in local_latest.keys():
         push_list[gw_id] = datetime.min.isoformat()
 
 for gw_id in remote_latest.keys():
-    # anything left in remote_latest will be new
+    # anything left in remote_latest will be new, pull all
     print('PULL {} at min'.format(gw_id))
     pull_list[gw_id] = datetime.min.isoformat()
