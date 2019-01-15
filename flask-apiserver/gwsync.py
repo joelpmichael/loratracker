@@ -99,7 +99,7 @@ for gw_id in remote_latest.keys():
     print('PULL {} at min'.format(gw_id))
     pull_list[gw_id] = datetime.min.isoformat()
 
-if len(push_list > 0):
+if len(push_list) > 0:
     # push_list: pull from local, push to remote
     print('PULL local, PUSH remote')
     l_conn.connect()
@@ -109,7 +109,7 @@ if len(push_list > 0):
     l_conn.close()
     r_conn.close()
 
-if len(pull_list > 0):
+if len(pull_list) > 0:
     # pull_list: pull from remote, push to local
     print('PULL remote, PUSH local')
     l_conn.connect()
