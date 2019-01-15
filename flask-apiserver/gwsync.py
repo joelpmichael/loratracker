@@ -63,9 +63,11 @@ headers = {
 # grab timestamps
 l_conn.request('GET', args.local_uri_base + '/gwlatest', None, headers)
 local_latest = json.loads(l_conn.getresponse().read().decode())
+l_conn.close()
 
 r_conn.request('GET', args.uri_base + '/gwlatest', None, headers)
 remote_latest = json.loads(r_conn.getresponse().read().decode())
+r_conn.close()
 
 push_list = {}
 pull_list = {}
@@ -98,9 +100,17 @@ for gw_id in remote_latest.keys():
     pull_list[gw_id] = datetime.min.isoformat()
 
 # push_list: pull from local, push to remote
+l_conn.connect()
+r_conn.connect()
 l_conn.request('POST', args.local_uri_base + '/pull', json.dumps(push_list), headers)
 r_conn.request('POST', args.uri_base + '/push', l_conn.getresponse().read(), headers)
+l_conn.close()
+r_conn.close()
 
 # pull_list: pull from remote, push to local
+l_conn.connect()
+r_conn.connect()
 r_conn.request('POST', args.uri_base + '/pull', json.dumps(pull_list), headers)
 l_conn.request('POST', args.local_uri_base + '/push', r_conn.getresponse().read(), headers)
+l_conn.close()
+r_conn.close()
