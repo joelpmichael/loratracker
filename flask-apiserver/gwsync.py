@@ -34,13 +34,13 @@ parser.add_argument('-s', '--https',
 parser.add_argument('-b', '--uri-base',
                     type=str,
                     default='',
-                    help='Remote URI base for constructing request URLs (default /)',
+                    help='Remote URI base for constructing request URLs (default none)',
 )
 
 parser.add_argument('-B', '--local-uri-base',
                     type=str,
                     default='',
-                    help='Local URI base for constructing request URLs (default /)',
+                    help='Local URI base for constructing request URLs (default none)',
 )
 
 args = parser.parse_args()
