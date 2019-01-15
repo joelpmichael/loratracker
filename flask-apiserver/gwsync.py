@@ -80,10 +80,10 @@ for gw_id in local_latest.keys():
         del remote_latest[gw_id]
         if local_ts < remote_ts:
             print('PULL {} at {}'.format(gw_id, local_ts.isoformat()))
-            pull_list[gw_id] = local_ts
+            pull_list[gw_id] = local_ts.isoformat()
         elif local_ts > remote_ts:
             print('PUSH {} at {}'.format(gw_id, remote_ts.isoformat()))
-            push_list[gw_id] = remote_ts
+            push_list[gw_id] = remote_ts.isoformat()
         else:
             # if timestamps match then no need to push or pull
             print('MATCH {} at {}'.format(gw_id, local_ts.isoformat()))
