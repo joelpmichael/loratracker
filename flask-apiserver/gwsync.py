@@ -96,3 +96,11 @@ for gw_id in remote_latest.keys():
     # anything left in remote_latest will be new, pull all
     print('PULL {} at min'.format(gw_id))
     pull_list[gw_id] = datetime.min.isoformat()
+
+# push_list: pull from local, push to remote
+l_conn.request('POST', args.local_uri_base + '/pull', json.dumps(push_list), headers)
+r_conn.request('POST', args.uri_base + '/push', l_conn.getresponse().read(), headers)
+
+# pull_list: pull from remote, push to local
+r_conn.request('POST', args.uri_base + '/pull', json.dumps(pull_list), headers)
+l_conn.request('POST', args.local_uri_base + '/push', r_conn.getresponse().read(), headers)
