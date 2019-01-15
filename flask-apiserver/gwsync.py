@@ -4,6 +4,10 @@
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 
 # sync tracker_data by comparing timestamps, then pull & push data
+# NOTE: there is a relatively slow race condition on multiple runs of this script
+# this script may connect to different passenger processes on multiple runs
+# but the first process may still be committing the transaction when the second
+# run starts, and the second may see old timestamps
 
 # handle arguments
 import argparse
@@ -106,6 +110,7 @@ if len(push_list) > 0:
     r_conn.connect()
     l_conn.request('POST', args.local_uri_base + '/pull', json.dumps(push_list), headers)
     r_conn.request('POST', args.uri_base + '/push', l_conn.getresponse().read(), headers)
+    r_conn.getresponse().read() # do nothing but wait for a 204
     l_conn.close()
     r_conn.close()
 
@@ -116,5 +121,6 @@ if len(pull_list) > 0:
     r_conn.connect()
     r_conn.request('POST', args.uri_base + '/pull', json.dumps(pull_list), headers)
     l_conn.request('POST', args.local_uri_base + '/push', r_conn.getresponse().read(), headers)
+    l_conn.getresponse().read() # do nothing but wait for a 204
     l_conn.close()
     r_conn.close()
