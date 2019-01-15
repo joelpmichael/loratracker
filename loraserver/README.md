@@ -8,7 +8,7 @@
 1. Add HTTP integration
 
 ## mod_tile
-1. Install PostgreSQL, PostGIS and Python3 PGSQL library: `apt install postgresql postgresql-client postgis osm2pgsql python3-psycopg2`
+1. Install PostgreSQL, PostGIS and Python3 PGSQL library: `apt install postgresql postgresql-client postgis osm2pgsql python3-psycopg2 python3-flask`
 1. Create tracker database
     1. `su - postgres`
     1. `createuser -D -E -P -S loratracker`
